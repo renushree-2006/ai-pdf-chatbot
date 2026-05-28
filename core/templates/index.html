@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>AI PDF Chatbot</title>
+
+    <style>
+
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+            font-family:Arial;
+        }
+
+        body{
+            background:#0f172a;
+            color:white;
+        }
+
+        .container{
+            display:flex;
+            height:100vh;
+        }
+
+        /* SIDEBAR */
+
+        .sidebar{
+            width:320px;
+            background:#1e293b;
+            padding:20px;
+            border-right:1px solid #334155;
+        }
+
+        .sidebar h2{
+            margin-bottom:25px;
+            font-size:34px;
+        }
+
+        .upload-box{
+            margin-top:20px;
+        }
+
+        .upload-box input{
+            width:100%;
+            margin-bottom:15px;
+            color:white;
+        }
+
+        .upload-box button{
+            width:100%;
+            padding:14px;
+            border:none;
+            border-radius:12px;
+            background:#38bdf8;
+            color:white;
+            font-size:17px;
+            cursor:pointer;
+            transition:0.3s;
+        }
+
+        .upload-box button:hover{
+            opacity:0.9;
+        }
+
+        /* CHAT SECTION */
+
+        .chat-section{
+            flex:1;
+            display:flex;
+            flex-direction:column;
+        }
+
+        .chat-header{
+            padding:20px;
+            border-bottom:1px solid #334155;
+            font-size:32px;
+            font-weight:bold;
+            background:#0b132b;
+        }
+
+        .chat-box{
+            flex:1;
+            padding:25px;
+            overflow-y:auto;
+            display:flex;
+            flex-direction:column;
+        }
+
+        .message{
+            max-width:75%;
+            padding:15px 18px;
+            margin-bottom:20px;
+            border-radius:16px;
+            line-height:1.6;
+            font-size:16px;
+            word-wrap:break-word;
+        }
+
+        .user{
+            background:#2563eb;
+            margin-left:auto;
+        }
+
+        .bot{
+            background:#334155;
+            margin-right:auto;
+        }
+
+        /* INPUT AREA */
+
+        .input-area{
+            display:flex;
+            gap:10px;
+            padding:20px;
+            border-top:1px solid #334155;
+            background:#0b132b;
+        }
+
+        .input-area input{
+            flex:1;
+            padding:16px;
+            border:none;
+            border-radius:12px;
+            background:#1e293b;
+            color:white;
+            outline:none;
+            font-size:16px;
+        }
+
+        .input-area button{
+            padding:16px 25px;
+            border:none;
+            border-radius:12px;
+            background:#38bdf8;
+            color:white;
+            font-size:16px;
+            cursor:pointer;
+            transition:0.3s;
+        }
+
+        .input-area button:hover{
+            opacity:0.9;
+        }
+
+        /* SCROLLBAR */
+
+        ::-webkit-scrollbar{
+            width:6px;
+        }
+
+        ::-webkit-scrollbar-thumb{
+            background:#475569;
+            border-radius:10px;
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <div class="container">
+
+        <!-- SIDEBAR -->
+
+        <div class="sidebar">
+
+            <h2>📄 Upload PDF</h2>
+
+            <form id="uploadForm" enctype="multipart/form-data">
+
+                {% csrf_token %}
+
+                <div class="upload-box">
+
+                    <input type="file" name="pdf" required>
+
+                    <button type="submit">
+                        Upload PDF
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+        <!-- CHAT SECTION -->
+
+        <div class="chat-section">
+
+            <div class="chat-header">
+                🤖 AI PDF Chatbot
+            </div>
+
+            <div class="chat-box" id="chatBox"></div>
+
+            <div class="input-area">
+
+                <input
+                    type="text"
+                    id="question"
+                    placeholder="Ask questions from your PDF..."
+                >
+
+                <button onclick="sendMessage()">
+                    Send
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+
+        // PDF UPLOAD
+
+        document.getElementById('uploadForm').onsubmit = async function(e){
+
+            e.preventDefault();
+
+            let formData = new FormData(this);
+
+            try{
+
+                let response = await fetch('/upload/',{
+                    method:'POST',
+                    body:formData
+                });
+
+                let data = await response.json();
+
+                alert(data.message);
+
+            }catch(error){
+
+                alert("PDF upload failed.");
+
+                console.log(error);
+            }
+        };
+
+        // CHAT FUNCTION
+
+        async function sendMessage(){
+
+            let input = document.getElementById('question');
+
+            let question = input.value;
+
+            if(question.trim() === ''){
+                return;
+            }
+
+            let chatBox = document.getElementById('chatBox');
+
+            // USER MESSAGE
+
+            chatBox.innerHTML += `
+                <div class="message user">
+                    ${question}
+                </div>
+            `;
+
+            input.value = '';
+
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            try{
+
+                let response = await fetch('/chat/',{
+
+                    method:'POST',
+
+                    headers:{
+                        'Content-Type':'application/json'
+                    },
+
+                    body:JSON.stringify({
+                        question:question
+                    })
+                });
+
+                let data = await response.json();
+
+                // BOT MESSAGE
+
+                chatBox.innerHTML += `
+                    <div class="message bot">
+                        ${data.answer}
+                    </div>
+                `;
+
+                chatBox.scrollTop = chatBox.scrollHeight;
+
+            }catch(error){
+
+                console.log(error);
+
+                chatBox.innerHTML += `
+                    <div class="message bot">
+                        Error getting AI response.
+                    </div>
+                `;
+            }
+        }
+
+        // ENTER KEY SUPPORT
+
+        document.getElementById('question')
+        .addEventListener('keypress', function(e){
+
+            if(e.key === 'Enter'){
+                sendMessage();
+            }
+        });
+
+    </script>
+
+</body>
+
+</html>
